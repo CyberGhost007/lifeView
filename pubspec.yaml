@@ -48,6 +48,7 @@ dependencies:
   community_charts_flutter: ^1.0.4
   dashed_circular_progress_bar: ^0.0.6
   syncfusion_flutter_charts: ^24.2.4+3
+  card_swiper: ^3.0.1
 
   # AI & Core
   wakelock_plus: ^1.2.5

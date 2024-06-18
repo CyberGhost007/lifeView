@@ -4,11 +4,14 @@ import 'package:ami/src/pages/heart_beat_page.dart';
 import 'package:ami/src/providers/face_detector_provider.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
+import '../providers/bulk_face_detector_provider.dart';
 import '../widgets/dynamic_button.dart';
 import '../widgets/dynamic_text.dart';
 import '../widgets/face_detector_view.dart';
 import '../widgets/gallery_view.dart';
+import 'bulk_images_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -19,6 +22,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   bool showButton = false;
+  final ImagePicker picker = ImagePicker();
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -91,6 +95,30 @@ class _HomePageState extends State<HomePage> {
                   },
                 ),
               const SizedBox(height: 18),
+              if (showButton)
+                DynamicButton(
+                  backgroundColor: Colors.blue,
+                  child: const DynamicText(
+                    text: "Bulk Image Detection",
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                  onPressed: () async {
+                    final List<XFile> images =
+                        await picker.pickMultiImage(limit: 10);
+
+                    if (images.isEmpty || images.length < 10) return;
+                    BulkFaceDetectorProvider.of().addImages(images);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const BulkImagesPage(),
+                      ),
+                    );
+                  },
+                ),
+              const SizedBox(height: 8),
               if (showButton)
                 Row(
                   children: [

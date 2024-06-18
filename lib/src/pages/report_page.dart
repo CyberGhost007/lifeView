@@ -198,34 +198,11 @@ class _ReportPageState extends State<ReportPage> {
                         provider.customPaint != null) {
                       return GestureDetector(
                         onTap: () {
-                          var child = Expanded(
-                            child: Consumer<FaceDetectorProvider>(
-                                builder: (context, provider, widgetChild) {
-                              if (provider.imgSize != null &&
-                                  provider.customPaint != null) {
-                                return Stack(
-                                  fit: StackFit.expand,
-                                  children: [
-                                    FittedBox(
-                                      child: SizedBox(
-                                        width: provider.imgSize!.width,
-                                        height: provider.imgSize!.height,
-                                        child: provider.customPaint!,
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              } else {
-                                return const CircularProgressIndicator();
-                              }
-                            }),
-                          );
-
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  PainterImageView(child: child),
+                              builder: (context) => PainterImageView(
+                                  imagePath: widget.imagePath!),
                             ),
                           );
                         },
