@@ -1,11 +1,9 @@
-import 'dart:developer';
-
-import 'package:camera/camera.dart';
+import 'package:ami/src/widgets/dynamic_text.dart';
 import 'package:flutter/material.dart';
-import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
+import 'package:provider/provider.dart';
 
+import '../providers/face_detector_provider.dart';
 import 'detector_view.dart';
-import '../services/helpers/face_detector_painter.dart';
 
 class FaceDetectorView extends StatefulWidget {
   const FaceDetectorView({super.key});
@@ -15,89 +13,94 @@ class FaceDetectorView extends StatefulWidget {
 }
 
 class _FaceDetectorViewState extends State<FaceDetectorView> {
-  final FaceDetector _faceDetector = FaceDetector(
-    options: FaceDetectorOptions(
-      enableContours: true,
-      enableLandmarks: true,
-    ),
-  );
-  bool _canProcess = true;
-  bool _isBusy = false;
-  CustomPaint? _customPaint;
-  String? _text;
-  var _cameraLensDirection = CameraLensDirection.front;
-
   @override
   void dispose() {
-    _canProcess = false;
-    _faceDetector.close();
+    FaceDetectorProvider.of().setCanProcess(false);
+    FaceDetectorProvider.of().faceDetector.close();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return DetectorView(
-      title: 'Face Detector',
-      customPaint: _customPaint,
-      text: _text,
-      onImage: _processImage,
-      onCameraFeedReady: () {
-        if (mounted) {
-          setState(() {});
-        }
-      },
-      initialCameraLensDirection: _cameraLensDirection,
-      onCameraLensDirectionChanged: (value) => _cameraLensDirection = value,
+    Size size = MediaQuery.of(context).size;
+    return Material(
+      color: Colors.white,
+      child: SafeArea(
+        child: Consumer<FaceDetectorProvider>(builder: (context, provider, _) {
+          return Column(
+            children: [
+              Container(
+                height: 60,
+                width: size.width,
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      width: 1,
+                      color: Colors.grey.shade200,
+                    ),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back_rounded),
+                    ),
+                    Flexible(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(100),
+                          color: provider.hasFace ? Colors.green : Colors.blue,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 6,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: DynamicText(
+                                text: provider.hasFace
+                                    ? "Face Detected "
+                                    : "Detecting Face.. ",
+                                color: Colors.white,
+                              ),
+                            ),
+                            const Icon(
+                              Icons.person,
+                              size: 16,
+                              color: Colors.white,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: DetectorView(
+                  title: 'Face Detector',
+                  customPaint: provider.customPaint,
+                  text: provider.text,
+                  onImage: provider.processImage,
+                  onCameraFeedReady: () {
+                    if (mounted) {
+                      setState(() {});
+                    }
+                  },
+                  initialCameraLensDirection: provider.cameraLensDirection,
+                  onCameraLensDirectionChanged: (value) =>
+                      provider.setCameraLens,
+                ),
+              ),
+            ],
+          );
+        }),
+      ),
     );
-  }
-
-  Future<void> _processImage(InputImage inputImage) async {
-    if (!_canProcess) return;
-    if (_isBusy) return;
-    _isBusy = true;
-    setState(() {
-      _text = '';
-    });
-    final faces = await _faceDetector.processImage(inputImage);
-    log('Faces found: ${faces.length}');
-    for (var face in faces) {
-      log('Face bounding box: ${face.boundingBox}');
-      log(face.headEulerAngleY.toString());
-      log(face.headEulerAngleZ.toString());
-      log(face.headEulerAngleX.toString());
-      log(face.leftEyeOpenProbability.toString());
-      log(face.rightEyeOpenProbability.toString());
-      log(face.smilingProbability.toString());
-      log(face.trackingId.toString());
-      log(face.landmarks.toString());
-      for (var l in face.landmarks.entries) {
-        var key = l.key;
-        FaceLandmark landmark = l.value as FaceLandmark;
-        log('Landmark: $key, ${landmark.position}');
-      }
-      log(face.contours.toString());
-    }
-    if (inputImage.metadata?.size != null &&
-        inputImage.metadata?.rotation != null) {
-      final painter = FaceDetectorPainter(
-        faces,
-        inputImage.metadata!.size,
-        inputImage.metadata!.rotation,
-        _cameraLensDirection,
-      );
-      _customPaint = CustomPaint(painter: painter);
-    } else {
-      String text = 'Faces found: ${faces.length}\n\n';
-      for (final face in faces) {
-        text += 'face: ${face.boundingBox}\n\n';
-      }
-      _text = text;
-      _customPaint = null;
-    }
-    _isBusy = false;
-    if (mounted) {
-      setState(() {});
-    }
   }
 }
 

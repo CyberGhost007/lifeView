@@ -1,12 +1,14 @@
 import 'dart:developer';
 
-import 'package:ami/src/pages/report_page.dart';
+import 'package:ami/src/pages/heart_beat_page.dart';
+import 'package:ami/src/providers/face_detector_provider.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:flutter/material.dart';
 
 import '../widgets/dynamic_button.dart';
 import '../widgets/dynamic_text.dart';
 import '../widgets/face_detector_view.dart';
+import '../widgets/gallery_view.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -51,10 +53,6 @@ class _HomePageState extends State<HomePage> {
                         textAlign: TextAlign.center,
                       ),
                       TyperAnimatedText(
-                        "Let's analyze your skin.",
-                        textAlign: TextAlign.center,
-                      ),
-                      TyperAnimatedText(
                         "Upload a photo and I'll identify spots, blackheads, and acne.",
                         textAlign: TextAlign.center,
                       ),
@@ -65,7 +63,7 @@ class _HomePageState extends State<HomePage> {
                     onNext: (p0, p1) {
                       log(p0.toString());
                       setState(() {
-                        if (p0 == 3) {
+                        if (p0 == 2) {
                           showButton = true;
                         }
                       });
@@ -74,6 +72,25 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               const Spacer(),
+              if (showButton)
+                DynamicButton(
+                  backgroundColor: Colors.black,
+                  child: const DynamicText(
+                    text: "Heart Rate Monitor",
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const HeartBeatPage(),
+                      ),
+                    );
+                  },
+                ),
+              const SizedBox(height: 18),
               if (showButton)
                 Row(
                   children: [
@@ -87,10 +104,11 @@ class _HomePageState extends State<HomePage> {
                           color: Colors.white,
                         ),
                         onPressed: () {
+                          FaceDetectorProvider.of().reset();
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const ReportPage(),
+                              builder: (context) => const GalleryView(),
                             ),
                           );
                         },
@@ -107,6 +125,7 @@ class _HomePageState extends State<HomePage> {
                           color: Colors.white,
                         ),
                         onPressed: () {
+                          FaceDetectorProvider.of().reset();
                           Navigator.push(
                             context,
                             MaterialPageRoute(

@@ -1,21 +1,20 @@
 import 'dart:io';
+import 'package:ami/src/providers/face_detector_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_commons/google_mlkit_commons.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+
+import '../pages/report_page.dart';
+import 'dynamic_text.dart';
 
 class GalleryView extends StatefulWidget {
-  const GalleryView(
-      {Key? key,
-      required this.title,
-      this.text,
-      required this.onImage,
-      required this.onDetectorViewModeChanged})
-      : super(key: key);
+  const GalleryView({
+    Key? key,
+    this.image,
+  }) : super(key: key);
 
-  final String title;
-  final String? text;
-  final Function(InputImage inputImage) onImage;
-  final Function()? onDetectorViewModeChanged;
+  final File? image;
 
   @override
   State<GalleryView> createState() => _GalleryViewState();
@@ -31,66 +30,96 @@ class _GalleryViewState extends State<GalleryView> {
     super.initState();
 
     _imagePicker = ImagePicker();
+    _image = null;
+    _path = null;
+
+    if (widget.image != null) {
+      _image = widget.image;
+      _path = widget.image?.path;
+      _processFile(_path!);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final Size size = MediaQuery.of(context).size;
     return Scaffold(
-        appBar: AppBar(
-          title: Text(widget.title),
-          actions: [
-            Padding(
-              padding: const EdgeInsets.only(right: 20.0),
-              child: GestureDetector(
-                onTap: widget.onDetectorViewModeChanged,
-                child: Icon(
-                  Platform.isIOS ? Icons.camera_alt_outlined : Icons.camera,
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Container(
+              height: 60,
+              width: size.width,
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    width: 1,
+                    color: Colors.grey.shade200,
+                  ),
                 ),
               ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back_rounded),
+                  ),
+                  const Flexible(
+                    child: DynamicText(
+                      text: "Face Detector",
+                    ),
+                  ),
+                ],
+              ),
             ),
+            Expanded(child: _galleryBody()),
           ],
         ),
-        body: _galleryBody());
+      ),
+    );
   }
 
   Widget _galleryBody() {
-    return ListView(shrinkWrap: true, children: [
-      _image != null
-          ? SizedBox(
-              height: 400,
-              width: 400,
-              child: Stack(
-                fit: StackFit.expand,
-                children: <Widget>[
-                  Image.file(_image!),
-                ],
+    return Consumer<FaceDetectorProvider>(builder: (context, provider, _) {
+      return Column(
+        children: [
+          if (_image == null || !provider.hasFace)
+            GestureDetector(
+              onTap: () {
+                _getImage(ImageSource.gallery);
+              },
+              child: Container(
+                margin: const EdgeInsets.all(14),
+                width: MediaQuery.of(context).size.width,
+                height: 200,
+                decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(width: 1, color: Colors.grey.shade200)),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.add_photo_alternate,
+                      size: 50,
+                    ),
+                    DynamicText(
+                        text: (_image != null && !provider.hasFace)
+                            ? "The photo does not contain any face"
+                            : "Click to upload an image"),
+                  ],
+                ),
               ),
             )
-          : const Icon(
-              Icons.image,
-              size: 200,
+          else
+            ReportPage(
+              imagePath: _path,
+              text: provider.text,
             ),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: ElevatedButton(
-          child: const Text('From Gallery'),
-          onPressed: () => _getImage(ImageSource.gallery),
-        ),
-      ),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: ElevatedButton(
-          child: const Text('Take a picture'),
-          onPressed: () => _getImage(ImageSource.camera),
-        ),
-      ),
-      if (_image != null)
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Text(
-              '${_path == null ? '' : 'Image path: $_path'}\n\n${widget.text ?? ''}'),
-        ),
-    ]);
+        ],
+      );
+    });
   }
 
   Future _getImage(ImageSource source) async {
@@ -110,6 +139,6 @@ class _GalleryViewState extends State<GalleryView> {
     });
     _path = path;
     final inputImage = InputImage.fromFilePath(path);
-    widget.onImage(inputImage);
+    FaceDetectorProvider.of().processImage(inputImage);
   }
 }

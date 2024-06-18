@@ -1,10 +1,15 @@
 import 'dart:developer';
 import 'dart:io';
 
+import 'package:ami/src/widgets/dynamic_text.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mlkit_commons/google_mlkit_commons.dart';
+import 'package:provider/provider.dart';
+
+import '../pages/image_view_page.dart';
+import '../providers/face_detector_provider.dart';
 
 class CameraView extends StatefulWidget {
   const CameraView(
@@ -38,7 +43,7 @@ class _CameraViewState extends State<CameraView> {
   double _minAvailableExposureOffset = 0.0;
   double _maxAvailableExposureOffset = 0.0;
   double _currentExposureOffset = 0.0;
-  bool _changingCameraLens = false;
+  final bool _changingCameraLens = false;
 
   @override
   void initState() {
@@ -78,99 +83,94 @@ class _CameraViewState extends State<CameraView> {
     if (_controller == null) return Container();
     if (_controller?.value.isInitialized == false) return Container();
     return Container(
-      color: Colors.black,
+      color: Colors.white,
       child: Stack(
         fit: StackFit.expand,
         children: <Widget>[
-          Center(
-            child: _changingCameraLens
-                ? const Center(
-                    child: Text('Changing camera lens'),
-                  )
-                : CameraPreview(
-                    _controller!,
-                    child: widget.customPaint,
-                  ),
-          ),
-          _backButton(),
-          _switchLiveCameraToggle(),
-          _detectionViewModeToggle(),
+          _changingCameraLens
+              ? const Center(
+                  child: Text('Changing camera lens'),
+                )
+              : CameraPreview(
+                  _controller!,
+                  child: widget.customPaint,
+                ),
           _zoomControl(),
           _exposureControl(),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child:
+                Consumer<FaceDetectorProvider>(builder: (context, provider, _) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: FloatingActionButton.extended(
+                  label: const DynamicText(text: "Capture"),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                  onPressed: () {
+                    if (provider.hasFace) {
+                      _takePicture();
+                    }
+                  },
+                  backgroundColor: Colors.white,
+                  foregroundColor: provider.hasFace ? Colors.blue : Colors.grey,
+                  icon: const Icon(Icons.camera),
+                ),
+              );
+            }),
+          ),
         ],
       ),
     );
   }
 
-  Widget _backButton() => Positioned(
-        top: 40,
-        left: 8,
-        child: SizedBox(
-          height: 50.0,
-          width: 50.0,
-          child: FloatingActionButton(
-            heroTag: Object(),
-            onPressed: () => Navigator.of(context).pop(),
-            backgroundColor: Colors.black54,
-            child: const Icon(
-              Icons.arrow_back_ios_outlined,
-              size: 20,
-            ),
-          ),
-        ),
-      );
+  void _takePicture() async {
+    XFile? imageFile;
+    try {
+      final XFile picture = await _controller!.takePicture();
+      setState(() {
+        imageFile = picture;
+      });
 
-  Widget _detectionViewModeToggle() => Positioned(
-        bottom: 8,
-        left: 8,
-        child: SizedBox(
-          height: 50.0,
-          width: 50.0,
-          child: FloatingActionButton(
-            heroTag: Object(),
-            onPressed: widget.onDetectorViewModeChanged,
-            backgroundColor: Colors.black54,
-            child: const Icon(
-              Icons.photo_library_outlined,
-              size: 25,
-            ),
-          ),
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ImageViewPage(imagePath: imageFile!.path),
         ),
       );
-
-  Widget _switchLiveCameraToggle() => Positioned(
-        bottom: 8,
-        right: 8,
-        child: SizedBox(
-          height: 50.0,
-          width: 50.0,
-          child: FloatingActionButton(
-            heroTag: Object(),
-            onPressed: _switchLiveCamera,
-            backgroundColor: Colors.black54,
-            child: Icon(
-              Platform.isIOS
-                  ? Icons.flip_camera_ios_outlined
-                  : Icons.flip_camera_android_outlined,
-              size: 25,
-            ),
-          ),
-        ),
-      );
+    } catch (e) {
+      log("Error taking picture: $e");
+    }
+  }
 
   Widget _zoomControl() => Positioned(
-        bottom: 16,
-        left: 0,
-        right: 0,
+        top: 40,
+        left: 8,
         child: Align(
-          alignment: Alignment.bottomCenter,
+          alignment: Alignment.topLeft,
           child: SizedBox(
-            width: 250,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(10.0),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Center(
+                      child: Text(
+                        '${_currentZoomLevel.toStringAsFixed(1)}x Zoom',
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ),
+                RotatedBox(
+                  quarterTurns: 3,
                   child: Slider(
                     value: _currentZoomLevel,
                     min: _minAvailableZoom,
@@ -183,22 +183,6 @@ class _CameraViewState extends State<CameraView> {
                       });
                       await _controller?.setZoomLevel(value);
                     },
-                  ),
-                ),
-                Container(
-                  width: 50,
-                  decoration: BoxDecoration(
-                    color: Colors.black54,
-                    borderRadius: BorderRadius.circular(10.0),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Center(
-                      child: Text(
-                        '${_currentZoomLevel.toStringAsFixed(1)}x',
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    ),
                   ),
                 ),
               ],
@@ -303,15 +287,6 @@ class _CameraViewState extends State<CameraView> {
     await _controller?.stopImageStream();
     await _controller?.dispose();
     _controller = null;
-  }
-
-  Future _switchLiveCamera() async {
-    setState(() => _changingCameraLens = true);
-    _cameraIndex = (_cameraIndex + 1) % _cameras.length;
-
-    await _stopLiveFeed();
-    await _startLiveFeed();
-    setState(() => _changingCameraLens = false);
   }
 
   void _processCameraImage(CameraImage image) {
